@@ -1550,7 +1550,7 @@ class Component extends DCLogic {
         };
       })(),
       vs: (k => k ? { main: 'vision-main-' + k, s2: 'vision-2-' + k, s3: 'vision-3-' + k, prof: 'profile-photo-' + k } : { main: 'vision-main', s2: 'vision-2', s3: 'vision-3', prof: 'profile-photo' })(s.slotKey),
-      signOut: () => { try { localStorage.removeItem('foci-user'); } catch (e) {} this.setState({ running: false, playing: false, profOpen: false }); window.location.href = 'index.html'; },
+      signOut: () => { try { localStorage.removeItem('foci-user'); } catch (e) {} this.setState({ running: false, playing: false, profOpen: false }); window.location.href = 'Foci Landing.dc.html'; },
       stageTransform: (sc => `translate(${(window.innerWidth - 1920 * sc) / 2}px, ${(window.innerHeight - 1080 * sc) / 2}px) scale(${sc})`)(s.scale > 0 ? s.scale : 1),
       pageName: pageNames[s.page] || '',
       darkOp: s.dark ? 1 : 0, toggleTheme: () => set({ dark: !s.dark }), themeTitle: s.dark ? 'Switch to light mode' : 'Switch to dark mode',

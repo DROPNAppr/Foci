@@ -507,7 +507,7 @@ class Component extends DCLogic {
         const err = !u ? A.eEmpty : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(u) ? A.eEmail : (s.mode === 'signup' && (nm.length < 2 || nm.length > 24)) ? A.eName : s.pass.length < 6 ? A.ePass : '';
         if (err) return this.setState({ err });
         try { ['foci-onboarded', 'foci-setup', 'foci-goals'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('foci-user', u); localStorage.setItem('foci-prof-name', s.mode === 'signup' ? nm : (localStorage.getItem('foci-prof-name') || u.split('@')[0])); localStorage.setItem('foci-lang', s.lang); } catch (x) {}
-        window.location.href = 'app.html';
+        window.location.href = 'Foci Study App.dc.html';
       },
       canvasRef: this.canvasRef, t: TXT[lg], caption: CAPS[lg][s.scene],
       capOp: s.capOn ? 1 : 0, capY: s.capOn ? '0px' : '8px',
