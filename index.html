@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e9e4da;font-family:Lexend,system-ui,sans-serif;overflow:hidden}
+a{color:#111;text-decoration:none}a:hover{color:#000}
+@keyframes bgShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(18vw,8vh) scale(1.2)}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-16vw,-10vh) scale(1.15)}}
+@keyframes drift3{0%,100%{transform:translate(0,0)}50%{transform:translate(-12vw,12vh)}}
+</style>
+</helmet>
+<div style="position:fixed;inset:0;overflow:hidden;color:#111">
+<div style="position:absolute;inset:0;overflow:hidden;background:linear-gradient(120deg,#e9e4da,#c7bdaf,#b9b0d8,#d9e8c4,#e9e4da);background-size:400% 400%;animation:bgShift 24s ease-in-out infinite">
+<div style="position:absolute;left:-8%;top:10%;width:32vw;height:60vh;border-radius:50%;background:#6d4f36;filter:blur(90px);opacity:.6;animation:drift1 22s ease-in-out infinite"></div>
+<div style="position:absolute;right:-6%;top:18%;width:30vw;height:56vh;border-radius:50%;background:#8f85c9;filter:blur(90px);opacity:.55;animation:drift2 26s ease-in-out infinite"></div>
+<div style="position:absolute;left:32%;top:-14%;width:38vw;height:34vh;border-radius:50%;background:#fffaf0;filter:blur(80px);opacity:.85;animation:drift3 18s ease-in-out infinite"></div>
+<div style="position:absolute;left:4%;bottom:-10%;width:24vw;height:32vh;border-radius:50%;background:#9fcf3a;filter:blur(90px);opacity:.45;animation:drift2 20s ease-in-out infinite reverse"></div>
+<div style="position:absolute;right:16%;bottom:-8%;width:26vw;height:30vh;border-radius:50%;background:#c58a5a;filter:blur(90px);opacity:.45;animation:drift1 28s ease-in-out infinite reverse"></div>
+</div>
+
+<canvas ref="{{ canvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>
+
+<header style="position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:28px clamp(20px,4vw,56px);z-index:2">
+<a href="#" style="display:flex;align-items:center;gap:10px">
+<div style="width:28px;height:28px;border-radius:50%;border:5px solid #c8ff2e;box-sizing:border-box;background:#111"></div>
+<div style="font-size:20px;font-weight:500;letter-spacing:.02em;color:#111">FOCI</div>
+</a>
+<nav style="display:flex;align-items:center;gap:8px">
+<div style="display:flex;gap:2px;padding:3px;border-radius:18px;background:rgba(255,255,255,.35);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+<sc-for list="{{ langs }}" as="l" hint-placeholder-count="2"><button onClick="{{ l.on }}" style="height:30px;padding:0 12px;border-radius:15px;border:none;background:{{ l.bg }};color:{{ l.fg }};font-family:inherit;font-size:12px;cursor:pointer">{{ l.label }}</button></sc-for>
+</div>
+<button onClick="{{ openLogin }}" style="height:42px;padding:0 20px;border-radius:21px;border:1px solid rgba(17,17,17,.25);background:rgba(255,255,255,.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;font-family:inherit;font-size:14px;color:#111;cursor:pointer;white-space:nowrap">{{ t.login }}</button>
+<button onClick="{{ openSignup }}" style="height:42px;padding:0 22px;border-radius:21px;border:none;background:#111;color:#c8ff2e;display:flex;align-items:center;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap">{{ t.signup }}</button>
+</nav>
+</header>
+
+<div ref="{{ bottomRef }}" style="position:absolute;left:0;right:0;bottom:clamp(28px,7vh,72px);display:flex;flex-direction:column;align-items:center;gap:18px;padding:0 24px;z-index:2;pointer-events:none">
+<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(17,17,17,.6)">{{ t.kicker }}</div>
+<div style="font-size:clamp(20px,2.4vw,30px);font-weight:500;text-align:center;max-width:720px;line-height:1.25;text-wrap:balance;opacity:{{ capOp }};transform:translateY({{ capY }});transition:opacity .6s ease,transform .6s ease">{{ caption }}</div>
+<div style="display:flex;gap:10px;pointer-events:auto">
+<button onClick="{{ openSignup }}" style="height:50px;padding:0 28px;border-radius:25px;border:none;background:#111;color:#c8ff2e;display:flex;align-items:center;gap:10px;font-family:inherit;font-size:15px;cursor:pointer;white-space:nowrap">{{ t.cta }} →</button>
+</div>
+<div style="display:flex;gap:6px;pointer-events:auto">
+<sc-for list="{{ dots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" title="{{ d.label }}" style="width:{{ d.w }};height:4px;border-radius:2px;border:none;padding:0;background:{{ d.bg }};cursor:pointer;transition:width .4s ease,background .4s ease"></button></sc-for>
+</div>
+</div>
+<sc-if value="{{ authOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeAuth }}" style="position:absolute;inset:0;z-index:10;background:rgba(233,228,218,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:20px;box-sizing:border-box">
+<form onClick="{{ stop }}" onSubmit="{{ submit }}" style="margin:auto 0;flex:none;width:min(440px,100%);box-sizing:border-box;padding:clamp(20px,4vh,36px) clamp(22px,3vw,34px) clamp(18px,3.5vh,30px);border-radius:36px;background:linear-gradient(160deg,rgba(255,255,255,.42),rgba(255,255,255,.12));backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4);border:1px solid rgba(255,255,255,.65);box-shadow:0 30px 80px rgba(60,45,30,.22),inset 0 1px 0 rgba(255,255,255,.8),inset 0 -1px 0 rgba(255,255,255,.2);display:flex;flex-direction:column;gap:clamp(10px,2vh,16px);color:#111">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:26px;height:26px;border-radius:50%;border:5px solid #c8ff2e;box-sizing:border-box;background:#111"></div>
+<div style="font-size:15px;font-weight:500;letter-spacing:.02em">FOCI</div>
+<span style="flex:1"></span>
+<button type="button" onClick="{{ closeAuth }}" style="width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.6);background:rgba(255,255,255,.2);color:#111;cursor:pointer;font-size:16px;font-family:inherit">×</button>
+</div>
+<div style="display:flex;gap:4px;padding:4px;border-radius:18px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45)">
+<sc-for list="{{ authTabs }}" as="a" hint-placeholder-count="2"><button type="button" onClick="{{ a.on }}" style="flex:1;height:38px;border-radius:14px;border:none;background:{{ a.bg }};color:#111;font-family:inherit;font-size:13.5px;cursor:pointer;box-shadow:{{ a.bd }};white-space:nowrap">{{ a.label }}</button></sc-for>
+</div>
+<div style="font-size:clamp(24px,4vh,30px);line-height:1.15;font-weight:500">{{ at.title }}</div>
+<div style="font-size:13.5px;line-height:1.5;color:rgba(17,17,17,.7)">{{ at.sub }}</div>
+<sc-if value="{{ isSignup }}" hint-placeholder-val="{{ true }}">
+<label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:rgba(17,17,17,.7)">{{ at.nameL }}
+<input value="{{ name }}" onChange="{{ onName }}" autoComplete="nickname" placeholder="{{ at.namePh }}" style="height:clamp(42px,7vh,50px);border-radius:16px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.22);color:#111;padding:0 18px;font-family:inherit;font-size:15px;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">
+</label>
+</sc-if>
+<label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:rgba(17,17,17,.7)">{{ at.userL }}
+<input type="email" value="{{ user }}" onChange="{{ onUser }}" autoComplete="email" placeholder="{{ at.userPh }}" style="height:clamp(42px,7vh,50px);border-radius:16px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.22);color:#111;padding:0 18px;font-family:inherit;font-size:15px;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">
+</label>
+<label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:rgba(17,17,17,.7)">{{ at.passL }}
+<input type="password" value="{{ pass }}" onChange="{{ onPass }}" autoComplete="{{ passAC }}" placeholder="••••••" style="height:clamp(42px,7vh,50px);border-radius:16px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.22);color:#111;padding:0 18px;font-family:inherit;font-size:15px;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">
+</label>
+<sc-if value="{{ hasErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;color:#b3261e;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.35)">{{ err }}</div></sc-if>
+<button type="submit" style="height:clamp(44px,7.5vh,52px);flex:none;margin-top:4px;border-radius:26px;border:none;background:#111;color:#c8ff2e;font-family:inherit;font-size:15px;cursor:pointer">{{ at.go }} →</button>
+<div style="font-size:12px;text-align:center;color:rgba(17,17,17,.6)">{{ at.hint }}</div>
+</form>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const CAPS = {
+  en: ['Made for UQAR students', 'Your study tracker, all in one place', 'Timer, timetable, tasks and notes on one screen', 'Stay focused, even on the hard days', 'Control your time', 'All the way to graduation', 'Your discipline is what sets you apart'],
+  fr: ['Conçu pour les étudiants de l’UQAR', 'Votre suivi d’études, tout au même endroit', 'Minuteur, horaire, tâches et notes sur un seul écran', 'Restez concentré, même les jours difficiles', 'Maîtrisez votre temps', 'Jusqu’à la remise des diplômes', 'Votre discipline, c’est ce qui vous distingue']
+};
+const AUTH = {
+  en: { login: { title: 'Welcome back', sub: 'Log in with your email to continue your study week.', go: 'Log in', hint: 'New here? Switch to Sign up.' }, signup: { title: 'Create your account', sub: 'Use your email and a password. You’ll set up your language, university and week next.', go: 'Create account', hint: 'Already have an account? Switch to Log in.' },
+    userL: 'Email', userPh: 'you@uqar.ca', nameL: 'Display name', namePh: 'e.g. Alex', passL: 'Password', eEmpty: 'Enter your email.', eEmail: 'Enter a valid email address.', eName: 'Enter a display name (2–24 characters).', ePass: 'Password must be at least 6 characters.' },
+  fr: { login: { title: 'Bon retour', sub: 'Connectez-vous avec votre courriel pour reprendre votre semaine.', go: 'Se connecter', hint: 'Nouveau ? Passez à S’inscrire.' }, signup: { title: 'Créer votre compte', sub: 'Utilisez votre courriel et un mot de passe. Vous configurerez ensuite langue, université et semaine.', go: 'Créer mon compte', hint: 'Déjà un compte ? Passez à Se connecter.' },
+    userL: 'Courriel', userPh: 'vous@uqar.ca', nameL: 'Nom affiché', namePh: 'ex. Alex', passL: 'Mot de passe', eEmpty: 'Entrez votre courriel.', eEmail: 'Entrez une adresse courriel valide.', eName: 'Entrez un nom affiché (2 à 24 caractères).', ePass: 'Le mot de passe doit contenir au moins 6 caractères.' }
+};
+const TXT = {
+  en: { login: 'Log in', signup: 'Sign up', cta: 'Get started', kicker: 'Study & deep focus' },
+  fr: { login: 'Se connecter', signup: 'S’inscrire', cta: 'Commencer', kicker: 'Études & concentration' }
+};
+const SCENES = [
+  { type: 'text', v: 'UQAR', step: 1 },
+  { type: 'sit', v: 'FOCI', step: 1 },
+  { type: 'photo', key: 'mac', dir: 1, dot: '255,255,255' },
+  { type: 'photo', key: 'desk', dir: -1 },
+  { type: 'photo', key: 'time', dir: 1 },
+  { type: 'photo', key: 'grad', dir: 1 },
+  { type: 'photo', dir: 1 }
+];
+const ENTER = 3800, HOLD = 2800, EXIT = 1400, SCENE_MS = ENTER + HOLD + EXIT;
+const easeOut = t => 1 - Math.pow(1 - t, 4);
+const easeIn = t => t * t * t;
+
+class Component extends DCLogic {
+  canvasRef = React.createRef();
+  bottomRef = React.createRef();
+  band() {
+    const top = 96, b = this.bottomRef.current, bt = b ? b.getBoundingClientRect().top : this.H - 230, bot = Math.max(top + 120, (bt || this.H - 230) - 24);
+    return { top, h: bot - top, cy: (top + bot) / 2 };
+  }
+  state = { authOpen: false, mode: 'signup', user: '', pass: '', err: '', scene: 0, capOn: true, lang: (() => { try { return localStorage.getItem('foci-lang') || 'en'; } catch (e) { return 'en'; } })() };
+
+  componentDidMount() {
+    this.cv = this.canvasRef.current; if (!this.cv) return;
+    this.ctx = this.cv.getContext('2d');
+    this.mouse = { x: -9999, y: -9999 };
+    this.onMove = e => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; };
+    this.onLeave = () => { this.mouse.x = this.mouse.y = -9999; };
+    window.addEventListener('pointermove', this.onMove); window.addEventListener('pointerleave', this.onLeave);
+    this.onResize = () => { if (!this.started) return; this.size(); if (!(this.W > 0 && this.H > 0)) return; this.buildTargets(); this.retarget(); };
+    window.addEventListener('resize', this.onResize);
+    this.size();
+    const img = new Image();
+    const fontReady = (document.fonts && document.fonts.load) ? document.fonts.load('600 200px Lexend').catch(() => {}) : Promise.resolve();
+    const imgReady = new Promise(res => { img.onload = res; img.onerror = res; img.src = 'assets/landing-shapes.png'; });
+    const crowd = new Image();
+    const crowdReady = new Promise(res => { crowd.onload = () => { try { this.prepCrowd(crowd); } catch (e) {} res(); }; crowd.onerror = res; crowd.src = 'assets/landing-crowd.png?v=2'; });
+    const start = () => {
+      this.size();
+      if (!(this.W > 0 && this.H > 0)) { this.raf = requestAnimationFrame(start); return; }
+      this.img = img.naturalWidth ? img : null;
+      this.buildTargets(); this.initParticles();
+      this.t0 = performance.now(); this.sceneIdx = -1; this.started = true;
+      const loop = now => { this.raf = requestAnimationFrame(loop); try { this.frame(now); } catch (e) {} };
+      this.raf = requestAnimationFrame(loop);
+    };
+    const desk = new Image();
+    const deskReady = new Promise(res => { desk.onload = () => { try { this.prepDesk(desk); } catch (e) {} res(); }; desk.onerror = res; desk.src = 'assets/landing-desk.png'; });
+    const grad = new Image();
+    const gradReady = new Promise(res => { grad.onload = () => { try { this.prepGrad(grad); } catch (e) {} res(); }; grad.onerror = res; grad.src = 'assets/landing-grad.png'; });
+    const sit = new Image();
+    const sitReady = new Promise(res => { sit.onload = () => { try { this.prepLean(sit); } catch (e) {} res(); }; sit.onerror = res; sit.src = 'assets/landing-lean.png'; });
+    const mac = new Image();
+    const macReady = new Promise(res => { mac.onload = () => { try { this.prepMac(mac); } catch (e) {} res(); }; mac.onerror = res; mac.src = 'assets/landing-mac.png'; });
+    const tim = new Image();
+    const timReady = new Promise(res => { tim.onload = () => { try { this.prepTime(tim); } catch (e) {} res(); }; tim.onerror = res; tim.src = 'assets/landing-time.png'; });
+    Promise.all([fontReady, imgReady, crowdReady, deskReady, gradReady, sitReady, macReady, timReady]).then(start).catch(start);
+    if (window.ResizeObserver) { this.ro = new ResizeObserver(() => { if (this.started && (this.cv.clientWidth !== this.W || this.cv.clientHeight !== this.H)) this.onResize(); }); this.ro.observe(this.cv); }
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf); if (this.ro) this.ro.disconnect();
+    window.removeEventListener('resize', this.onResize); window.removeEventListener('pointermove', this.onMove); window.removeEventListener('pointerleave', this.onLeave);
+  }
+
+  size() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.W = window.innerWidth || this.cv.clientWidth || 0; this.H = window.innerHeight || this.cv.clientHeight || 0; this.dpr = dpr;
+    this.cv.width = this.W * dpr; this.cv.height = this.H * dpr;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.N = Math.round(Math.max(4000, Math.min(9000, this.W * this.H / 200)));
+  }
+
+  samplePoints(sc) {
+    const W = this.W, H = this.H, BD = this.band(), aw = Math.min(W * 0.66, 1100), ah = Math.min(BD.h * 0.9, 460);
+    if (!(W > 0 && H > 0)) return Array.from({ length: this.N }, () => [W / 2, H / 2]);
+    if (sc.type === 'sit') {
+      const BD = this.band(), aw2 = Math.min(W * 0.62, 1000);
+      const o2 = document.createElement('canvas').getContext('2d'); o2.font = '700 200px Lexend';
+      const m = o2.measureText(sc.v).width || 600, fs = Math.max(20, Math.min(BD.h * 0.42, 200 * aw2 / m));
+      const tw = Math.ceil(200 * 0 + m * fs / 200), th = Math.ceil(fs * 0.82);
+      const gh = Math.min(BD.h * 0.92, th * 1.55), sk = this.sit ? gh / this.sit.h : 1, gw = this.sit ? this.sit.w * sk : 0;
+      const baseline = BD.cy + gh / 2, textTop = baseline - th, shift = gw * 0.4;
+      const oc = document.createElement('canvas'); oc.width = Math.max(1, tw + 4); oc.height = Math.max(1, th + 4);
+      const o = oc.getContext('2d', { willReadFrequently: true }); o.font = '700 ' + fs + 'px Lexend'; o.textAlign = 'center'; o.textBaseline = 'alphabetic'; o.fillStyle = '#000';
+      o.fillText(sc.v, oc.width / 2, th + 1);
+      const data = o.getImageData(0, 0, oc.width, oc.height).data, pts = [];
+      for (let y = 0; y < oc.height; y++) for (let x = 0; x < oc.width; x++) if (data[(y * oc.width + x) * 4 + 3] > 128) pts.push([x, y]);
+      const x0 = W / 2 - shift - oc.width / 2, y0 = textTop - 1, textRight = W / 2 - shift + tw / 2;
+      if (this.sit) this.sitL = { x: textRight - 26 * sk + th * 0.02, y: baseline - (this.sit.h - 6) * sk, w: gw, h: gh };
+      for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pts[i], pts[j]] = [pts[j], pts[i]]; }
+      return Array.from({ length: this.N }, (_, i) => { const p = pts.length ? pts[i % pts.length] : [oc.width / 2, oc.height / 2]; return [x0 + p[0] + (i >= pts.length ? (Math.random() - 0.5) * 1.5 : 0), y0 + p[1] + (i >= pts.length ? (Math.random() - 0.5) * 1.5 : 0)]; });
+    }
+    if (sc.type === 'photo') {
+      const PH = this.photoOf(sc);
+      if (!PH || !PH.pts.length) return Array.from({ length: this.N }, () => [W / 2, H / 2]);
+      const rc = this.crowdRect(PH); let src = PH.pts; const out = [];
+      if (PH.screen) {
+        const [sx, sy, sw, sh] = PH.screen, tc = document.createElement('canvas'); tc.width = sw; tc.height = sh;
+        const to = tc.getContext('2d', { willReadFrequently: true }); to.font = '700 100px Lexend';
+        const m = to.measureText('UQAR').width || 300, fs = Math.min(sh * 0.62, 100 * sw * 0.8 / m);
+        to.font = '700 ' + fs + 'px Lexend'; to.textAlign = 'center'; to.textBaseline = 'middle'; to.fillStyle = '#000'; to.fillText('UQAR', sw / 2, sh / 2 + fs * 0.04);
+        const td = to.getImageData(0, 0, sw, sh).data, st = rc.k > 1.4 ? 1 : 0.5; src = [];
+        for (let y = 0; y < sh; y += st) for (let x = 0; x < sw; x += st) if (td[((y | 0) * sw + (x | 0)) * 4 + 3] > 128) src.push([sx + x, sy + y]);
+        if (!src.length) src = [[sx + sw / 2, sy + sh / 2]];
+      }
+      const idx = Array.from({ length: src.length }, (_, i) => i);
+      for (let i = idx.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [idx[i], idx[j]] = [idx[j], idx[i]]; }
+      for (let i = 0; i < this.N; i++) { const p = src[idx[i % idx.length]]; out.push([rc.x + p[0] * rc.k + (Math.random() - 0.5) * rc.k, rc.y + p[1] * rc.k + (Math.random() - 0.5) * rc.k]); }
+      return out;
+    }
+    const oc = document.createElement('canvas'), o = oc.getContext('2d', { willReadFrequently: true });
+    let dw, dh;
+    if (sc.type === 'text') {
+      o.font = '700 200px Lexend';
+      const m = o.measureText(sc.v).width || 600, fs = Math.min(ah * 0.95, 200 * aw / m);
+      oc.width = Math.max(1, Math.ceil(aw)); oc.height = Math.max(1, Math.ceil((fs > 0 ? fs : 100) * 1.2));
+      o.font = `700 ${fs}px Lexend`; o.textAlign = 'center'; o.textBaseline = 'middle'; o.fillStyle = '#000';
+      o.fillText(sc.v, oc.width / 2, oc.height / 2);
+      dw = oc.width; dh = oc.height;
+    } else if (sc.type === 'draw') {
+      dw = Math.max(1, Math.round(Math.min(aw, ah * sc.ratio))); dh = Math.max(1, Math.round(dw / sc.ratio));
+      oc.width = dw; oc.height = dh;
+      sc.draw(o, dw, dh);
+    } else {
+      if (!this.img) return [];
+      const [bx, by, bw, bh] = sc.box, k = Math.min(aw / bw, ah / bh);
+      dw = Math.max(1, Math.round(bw * k)); dh = Math.max(1, Math.round(bh * k));
+      oc.width = dw; oc.height = dh;
+      o.fillStyle = '#fff'; o.fillRect(0, 0, dw, dh);
+      o.drawImage(this.img, bx, by, bw, bh, 0, 0, dw, dh);
+    }
+    const data = o.getImageData(0, 0, oc.width, oc.height).data, pts = [], step = sc.step || 2;
+    const test = sc.test || ((r, g, b, a) => a > 128);
+    for (let y = 0; y < oc.height; y += step) for (let x = 0; x < oc.width; x += step) {
+      const i = (y * oc.width + x) * 4;
+      if (test(data[i], data[i + 1], data[i + 2], data[i + 3])) pts.push([x, y]);
+    }
+    const cx = W / 2 - oc.width / 2, cy = BD.cy - oc.height / 2;
+    for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pts[i], pts[j]] = [pts[j], pts[i]]; }
+    const out = [];
+    for (let i = 0; i < this.N; i++) {
+      const p = pts.length ? pts[i % pts.length] : [oc.width / 2, oc.height / 2], dup = i >= pts.length;
+      out.push([cx + p[0] + (dup ? (Math.random() - 0.5) * 2.5 : 0), cy + p[1] + (dup ? (Math.random() - 0.5) * 2.5 : 0)]);
+    }
+    return out;
+  }
+  prepCrowd(im) {
+    const k = Math.min(1, 1300 / im.naturalWidth), w = Math.round(im.naturalWidth * k), hh = Math.round(im.naturalHeight * k);
+    const c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0, w, hh);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, pts = [], n = w * hh;
+    const lum = new Uint8Array(n), green = new Uint8Array(n), bg = new Uint8Array(n);
+    for (let p = 0; p < n; p++) { const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2]; lum[p] = (r + g + b) / 3; green[p] = d[i + 3] > 40 && g > 70 && g > r * 1.35 && g > b * 1.35 ? 1 : 0; }
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const seed = p => { if (!bg[p] && !green[p] && (lum[p] > 150 || d[p * 4 + 3] < 40)) { bg[p] = 1; q[qt++] = p; } };
+    for (let x = 0; x < w; x++) seed(x);
+    for (let y = 0; y < hh * 0.6; y++) { seed(y * w); seed(y * w + w - 1); }
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) seed(p - 1); if (x < w - 1) seed(p + 1); if (p >= w) seed(p - w); if (p < n - w) seed(p + w); }
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w, y = (p / w) | 0;
+      if (green[p]) { d[i + 3] = 0; if (((x | y) & 1) === 0) pts.push([x, y]); continue; }
+      if (bg[p]) { d[i + 3] = 0; continue; }
+      let nb = 0; if (x > 1 && bg[p - 2]) nb++; if (x < w - 2 && bg[p + 2]) nb++; if (p >= 2 * w && bg[p - 2 * w]) nb++; if (p < n - 2 * w && bg[p + 2 * w]) nb++;
+      const l = lum[p]; d[i] = d[i + 1] = d[i + 2] = l < 128 ? 17 : Math.min(255, l + 10);
+      if (nb >= 3) d[i + 3] = 0; else if (nb) d[i + 3] = Math.round(d[i + 3] * 0.55);
+    }
+    o.putImageData(id, 0, 0);
+    this.crowd = { c, w, h: hh, pts };
+  }
+  prepDesk(im) {
+    const k = Math.min(1, 1300 / im.naturalWidth), w = Math.round(im.naturalWidth * k), hh = Math.round(im.naturalHeight * k);
+    const c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0, w, hh);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, cut = new Uint8Array(n), pts = [];
+    const x0 = Math.round(1095 * k), x1 = Math.round(1378 * k), y0 = Math.round(298 * k), y1 = Math.round(668 * k);
+    const ok = p => { const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2]; return d[i + 3] > 60 && !(r > 150 && g < 110 && b < 110); };
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const push = (x, y) => { if (x < x0 || x > x1 || y < y0 || y > y1) return; const p = y * w + x; if (cut[p] || !ok(p)) return; cut[p] = 1; q[qt++] = p; };
+    push(Math.round(1262 * k), Math.round(470 * k)); push(Math.round(1150 * k), Math.round(470 * k));
+    while (qh < qt) { const p = q[qh++], x = p % w, y = (p / w) | 0; push(x - 1, y); push(x + 1, y); push(x, y - 1); push(x, y + 1); }
+    for (let p = 0; p < n; p++) if (cut[p]) { d[p * 4 + 3] = 0; const x = p % w, y = (p / w) | 0; if (((x | y) & 1) === 0) pts.push([x, y]); }
+    o.putImageData(id, 0, 0);
+    this.desk = { c, w, h: hh, pts };
+  }
+  prepLean(im) {
+    const w = im.naturalWidth, hh = im.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, L = new Float32Array(n), bg = new Uint8Array(n);
+    for (let p = 0; p < n; p++) { const i = p * 4; L[p] = (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const go = p => { if (bg[p] || L[p] < 222) return; bg[p] = 1; q[qt++] = p; };
+    for (let x = 0; x < w; x++) { go(x); go((hh - 1) * w + x); }
+    for (let y = 0; y < hh; y++) { go(y * w); go(y * w + w - 1); }
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1); if (x < w - 1) go(p + 1); if (p >= w) go(p - w); if (p < n - w) go(p + w); }
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w;
+      if (bg[p]) { d[i + 3] = 0; continue; }
+      let nb = 0; if (x > 0 && bg[p - 1]) nb++; if (x < w - 1 && bg[p + 1]) nb++; if (p >= w && bg[p - w]) nb++; if (p < n - w && bg[p + w]) nb++;
+      if (nb >= 2 && L[p] > 170) d[i + 3] = 0; else if (nb) d[i + 3] = 170;
+    }
+    o.putImageData(id, 0, 0);
+    this.sit = { c, w, h: hh };
+  }
+  prepSit(im) {
+    const cx0 = 415, cy0 = 410, w = 395, hh = 625;
+    const c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, cx0, cy0, w, hh, 0, 0, w, hh);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, L = new Float32Array(n), B = new Float32Array(n), bg = new Uint8Array(n), ch = new Uint8Array(n);
+    for (let p = 0; p < n; p++) { const i = p * 4; L[p] = (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    const r = 2;
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) { let s = 0, k = 0; for (let dy = -r; dy <= r; dy++) { const yy = y + dy; if (yy < 0 || yy >= hh) continue; for (let dx = -r; dx <= r; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue; s += L[yy * w + xx]; k++; } } B[y * w + x] = s / k; }
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const go = (p, f, m, cond) => { if (m[p] || !cond(p, f)) return; m[p] = 1; q[qt++] = p; };
+    const bgc = (p, f) => B[p] > 178 && (f < 0 || Math.abs(B[p] - B[f]) <= 3);
+    for (let x = 0; x < w; x++) { go(x, -1, bg, bgc); go((hh - 1) * w + x, -1, bg, bgc); }
+    for (let y = 0; y < hh; y++) { go(y * w, -1, bg, bgc); go(y * w + w - 1, -1, bg, bgc); }
+    const run = (m, cond) => { while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1, p, m, cond); if (x < w - 1) go(p + 1, p, m, cond); if (p >= w) go(p - w, p, m, cond); if (p < n - w) go(p + w, p, m, cond); } };
+    run(bg, bgc);
+    qh = qt = 0;
+    const chc = p => { const x = p % w, y = (p / w) | 0; if (y < 262 || y > 488 || x > 300) return false; if (x > 112 && y > 448) return false; return B[p] < 34 && !bg[p]; };
+    [[28, 345], [24, 420], [70, 438], [150, 455]].forEach(([x, y]) => go(y * w + x, -1, ch, chc));
+    run(ch, chc);
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w;
+      if (bg[p] || ch[p]) { d[i + 3] = 0; continue; }
+      let nb = 0; if (x > 1 && (bg[p - 2] || ch[p - 2])) nb++; if (x < w - 2 && (bg[p + 2] || ch[p + 2])) nb++; if (p >= 2 * w && (bg[p - 2 * w] || ch[p - 2 * w])) nb++; if (p < n - 2 * w && (bg[p + 2 * w] || ch[p + 2 * w])) nb++;
+      if (nb >= 3) d[i + 3] = 0; else if (nb) d[i + 3] = 150;
+    }
+    o.putImageData(id, 0, 0);
+    this.sit = { c, w, h: hh, seatX: 150, seatY: 392 };
+  }
+  photoOf(sc) { return sc.key === 'desk' ? this.desk : sc.key === 'grad' ? this.grad : sc.key === 'mac' ? this.mac : sc.key === 'time' ? this.time : this.crowd; }
+  prepTime(im) {
+    const w = im.naturalWidth, hh = im.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, L = new Float32Array(n), cut = new Uint8Array(n), pts = [];
+    for (let p = 0; p < n; p++) { const i = p * 4; L[p] = (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const ok = p => { const x = p % w; return x > 405 && L[p] < 110; };
+    const go = p => { if (cut[p] || !ok(p)) return; cut[p] = 1; q[qt++] = p; };
+    [[495, 420], [490, 700], [500, 210]].forEach(([x, y]) => go(y * w + x));
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1); if (x < w - 1) go(p + 1); if (p >= w) go(p - w); if (p < n - w) go(p + w); }
+    for (let p = w; p < n - w; p++) if (!cut[p] && L[p] < 170 && (p % w) > 405 && (cut[p - 1] || cut[p + 1] || cut[p - w] || cut[p + w])) cut[p] = 2;
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w, y = (p / w) | 0;
+      if (cut[p]) { d[i + 3] = 0; if (cut[p] === 1 && ((x | y) & 1) === 0) pts.push([x, y]); continue; }
+      const a = Math.max(0, Math.min(1, (226 - L[p]) / 160));
+      d[i + 3] = Math.round(Math.pow(a, 0.85) * 255);
+    }
+    o.putImageData(id, 0, 0);
+    this.time = { c, w, h: hh, pts, scale: 0.8 };
+  }
+  prepMac(im) {
+    const w = im.naturalWidth, hh = im.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, bg = new Uint8Array(n);
+    const blue = p => { const i = p * 4; return d[i + 2] - d[i] > 18; };
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const go = p => { if (bg[p] || !blue(p)) return; bg[p] = 1; q[qt++] = p; };
+    for (let x = 0; x < w; x++) { go(x); go((hh - 1) * w + x); }
+    for (let y = 0; y < hh; y++) { go(y * w); go(y * w + w - 1); }
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1); if (x < w - 1) go(p + 1); if (p >= w) go(p - w); if (p < n - w) go(p + w); }
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w;
+      if (bg[p]) { d[i + 3] = 0; continue; }
+      let nb = 0; if (x > 1 && bg[p - 2]) nb++; if (x < w - 2 && bg[p + 2]) nb++; if (p >= 2 * w && bg[p - 2 * w]) nb++; if (p < n - 2 * w && bg[p + 2 * w]) nb++;
+      if (nb >= 3) d[i + 3] = 0; else if (nb) d[i + 3] = 150;
+    }
+    o.putImageData(id, 0, 0);
+    this.mac = { c, w, h: hh, pts: [[0, 0]], screen: [290, 300, 245, 198], scale: 1.45 };
+  }
+  prepGrad(im) {
+    const w = im.naturalWidth, hh = im.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const o = c.getContext('2d', { willReadFrequently: true }); o.drawImage(im, 0, 0);
+    const id = o.getImageData(0, 0, w, hh), d = id.data, n = w * hh, L = new Float32Array(n), bg = new Uint8Array(n), hat = new Uint8Array(n), pts = [];
+    for (let p = 0; p < n; p++) { const i = p * 4; L[p] = (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    const q = new Int32Array(n); let qh = 0, qt = 0;
+    const go = (p, from, mark, cond) => { if (mark[p] || !cond(p, from)) return; mark[p] = 1; q[qt++] = p; };
+    const bgc = (p, f) => L[p] > 140 && (f < 0 || Math.abs(L[p] - L[f]) <= 7);
+    for (let x = 0; x < w; x++) { go(x, -1, bg, bgc); go((hh - 1) * w + x, -1, bg, (p) => L[p] > 140 && L[p] < 235); }
+    for (let y = 0; y < hh; y++) { go(y * w, -1, bg, bgc); go(y * w + w - 1, -1, bg, bgc); }
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1, p, bg, bgc); if (x < w - 1) go(p + 1, p, bg, bgc); if (p >= w) go(p - w, p, bg, bgc); if (p < n - w) go(p + w, p, bg, bgc); }
+    qh = qt = 0;
+    const hc = p => { const x = p % w, y = (p / w) | 0; return x >= 120 && x <= 580 && y >= 190 && y <= 528 && L[p] < 85 && !bg[p]; };
+    go(330 * w + 330, -1, hat, hc); go(450 * w + 470, -1, hat, hc);
+    while (qh < qt) { const p = q[qh++], x = p % w; if (x > 0) go(p - 1, p, hat, hc); if (x < w - 1) go(p + 1, p, hat, hc); if (p >= w) go(p - w, p, hat, hc); if (p < n - w) go(p + w, p, hat, hc); }
+    const ring = [];
+    for (let p = w; p < n - w; p++) if (!hat[p] && !bg[p] && L[p] < 140 && (hat[p - 1] || hat[p + 1] || hat[p - w] || hat[p + w])) { const y = (p / w) | 0; if (y <= 528) ring.push(p); }
+    ring.forEach(p => hat[p] = 1);
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = p % w, y = (p / w) | 0;
+      if (hat[p]) { d[i + 3] = 0; if (((x | y) & 1) === 0) pts.push([x, y]); continue; }
+      if (bg[p]) { d[i + 3] = 0; continue; }
+      let nb = 0; if (x > 1 && bg[p - 2]) nb++; if (x < w - 2 && bg[p + 2]) nb++; if (p >= 2 * w && bg[p - 2 * w]) nb++; if (p < n - 2 * w && bg[p + 2 * w]) nb++;
+      if (nb >= 3) d[i + 3] = 0; else if (nb) d[i + 3] = 150;
+    }
+    o.putImageData(id, 0, 0);
+    this.grad = { c, w, h: hh, pts };
+  }
+  crowdRect(P = this.crowd) {
+    const BD = this.band(), cw = P ? P.w : 1672, ch = P ? P.h : 941;
+    const sc = (P && P.scale) || 1, w = Math.min(this.W * 0.66 * sc, BD.h * 0.85 * sc * cw / ch), hh = w * ch / cw;
+    return { x: this.W / 2 - w / 2, y: BD.cy - hh / 2, w, h: hh, k: w / cw };
+  }
+  buildTargets() { this.targets = SCENES.map(sc => { try { return this.samplePoints(sc); } catch (e) { return Array.from({ length: this.N }, () => [this.W / 2, this.H / 2]); } }); }
+
+  initParticles() {
+    this.P = Array.from({ length: this.N }, () => ({ x: -100, y: -100, px: -100, py: -100, ox: 0, oy: 0, r: 0.8 + Math.random() * 0.9, ph: Math.random() * 6.28 }));
+    this.dust = Array.from({ length: 140 }, () => ({ x: Math.random() * this.W, y: Math.random() * this.H, vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15, r: 0.6 + Math.random() * 1.2 }));
+  }
+  retarget() {
+    if (!this.P) return;
+    if (this.P.length !== this.N) this.initParticles();
+    if (this.sceneIdx >= 0) this.startScene(this.sceneIdx, true);
+  }
+
+  startScene(idx, keepTime) {
+    const W = this.W, H = this.H, T = this.targets[idx], corners = [[-60, -60], [W + 60, -60], [W + 60, H + 60], [-60, H + 60]];
+    this.P.forEach((p, i) => {
+      const c = corners[(Math.random() * 4) | 0], ang = Math.random() * Math.PI / 2, rad = 40 + Math.pow(Math.random(), 0.7) * Math.min(W, H) * 0.55;
+      const sgx = c[0] < 0 ? -1 : 1, sgy = c[1] < 0 ? -1 : 1;
+      let sx = c[0] + sgx * Math.cos(ang) * rad * 0.4 - sgx * Math.sin(ang) * rad * 0.9 * Math.random();
+      let sy = c[1] + sgy * Math.sin(ang) * rad * 0.4 - sgy * Math.cos(ang) * rad * 0.9 * Math.random();
+      if (sx > -8 && sx < W + 8 && sy > -8 && sy < H + 8) { if (Math.abs(sx - c[0]) < Math.abs(sy - c[1])) sx = c[0] + sgx * (10 + Math.random() * 60); else sy = c[1] + sgy * (10 + Math.random() * 60); }
+      const [tx, ty] = T[i];
+      const mx = (sx + tx) / 2, my = (sy + ty) / 2, dx = tx - sx, dy = ty - sy, len = Math.hypot(dx, dy) || 1, bend = (Math.random() - 0.5) * 0.9 * len;
+      Object.assign(p, { sx, sy, tx, ty, cx: mx - dy / len * bend, cy: my + dx / len * bend, del: Math.random() * 1300 + (Math.hypot(tx - W / 2, ty - this.band().cy) / Math.hypot(W, H)) * 500, dur: 2100 + Math.random() * 1100 });
+      const ex = tx - W / 2, ey = ty - this.band().cy, el = Math.hypot(ex, ey) || 1, far = Math.hypot(W, H) * (0.7 + Math.random() * 0.5);
+      p.exX = tx + (ex / el + (Math.random() - 0.5) * 0.35) * far; p.exY = ty + (ey / el + (Math.random() - 0.5) * 0.35) * far;
+      p.exDel = Math.random() * 350; p.exDur = 800 + Math.random() * 500;
+      if (!keepTime) { p.x = p.px = sx; p.y = p.py = sy; }
+    });
+  }
+
+  frame(now) {
+    const ctx = this.ctx, W = this.W, H = this.H;
+    if (this.jump != null) { this.t0 = now - this.jump * SCENE_MS; this.jump = null; this.sceneIdx = -1; }
+    const el = now - this.t0, idx = Math.floor(el / SCENE_MS) % SCENES.length, t = el % SCENE_MS;
+    if (idx !== this.sceneIdx) { this.sceneIdx = idx; this.startScene(idx); this.setState({ scene: idx, capOn: true }); }
+    if (t > ENTER + HOLD && this.state.capOn) this.setState({ capOn: false });
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(17,17,17,.22)';
+    for (const d of this.dust) { d.x = (d.x + d.vx + W) % W; d.y = (d.y + d.vy + H) % H; ctx.fillRect(d.x, d.y, d.r, d.r); }
+    const SC = SCENES[idx];
+    const PH = SC.type === 'photo' ? this.photoOf(SC) : null;
+    if (PH) {
+      const rc = this.crowdRect(PH), dir = SC.dir || 1;
+      let off = 0, al = 1;
+      if (t < ENTER) { const k = Math.min(1, t / (ENTER * 0.8)); off = dir * (1 - easeOut(k)) * (W * 0.9); al = Math.min(1, k * 1.6); }
+      else if (t > ENTER + HOLD) { const k = Math.min(1, (t - ENTER - HOLD) / EXIT); off = -dir * easeIn(k) * W; al = 1 - k; }
+      ctx.globalAlpha = al * 0.95; ctx.drawImage(PH.c, rc.x + off, rc.y, rc.w, rc.h); ctx.globalAlpha = 1;
+    }
+    const fast = new Path2D(), slow = new Path2D(), dots = new Path2D(), mx = this.mouse.x, my = this.mouse.y;
+    for (const p of this.P) {
+      let x, y;
+      if (t < ENTER + HOLD) {
+        const k = Math.max(0, Math.min(1, (t - p.del) / p.dur)), e = easeOut(k), u = 1 - e;
+        x = u * u * p.sx + 2 * u * e * p.cx + e * e * p.tx; y = u * u * p.sy + 2 * u * e * p.cy + e * e * p.ty;
+        if (k >= 1) { x += Math.sin(now * 0.0012 + p.ph) * 0.7; y += Math.cos(now * 0.001 + p.ph) * 0.7; }
+      } else {
+        const k = Math.max(0, Math.min(1, (t - ENTER - HOLD - p.exDel) / p.exDur)), e = easeIn(k);
+        x = p.tx + (p.exX - p.tx) * e; y = p.ty + (p.exY - p.ty) * e;
+      }
+      const dx = x + p.ox - mx, dy = y + p.oy - my, d2 = dx * dx + dy * dy;
+      if (d2 < 8100) { const d = Math.sqrt(d2) || 1, f = (90 - d) / 90 * 2.2; p.ox += dx / d * f; p.oy += dy / d * f; }
+      p.ox *= 0.92; p.oy *= 0.92;
+      x += p.ox; y += p.oy;
+      const sp = Math.hypot(x - p.px, y - p.py);
+      if (sp > 2.5 && sp < 400) { const path = sp > 14 ? fast : slow; path.moveTo(p.px, p.py); path.lineTo(x, y); }
+      dots.rect(x - p.r / 2, y - p.r / 2, p.r, p.r);
+      p.px = x; p.py = y;
+    }
+    if (SC.type === 'sit' && this.sit && this.sitL) {
+      const L = this.sitL; let dy = 0, al = 1;
+      let dx = 0;
+      if (t < ENTER) { const k = Math.max(0, Math.min(1, (t - ENTER * 0.45) / (ENTER * 0.5))); dx = (1 - easeOut(k)) * W * 0.35; al = Math.min(1, k * 1.5); }
+      else if (t > ENTER + HOLD) { const k = Math.min(1, (t - ENTER - HOLD) / (EXIT * 0.8)); dx = easeIn(k) * W * 0.6; al = 1 - k; }
+      this._sitDraw = al > 0 ? [L.x + dx, L.y + dy, L.w, L.h, al] : null;
+    } else this._sitDraw = null;
+    ctx.lineWidth = 0.5;
+    const DC = SC.dot || '17,17,17';
+    ctx.strokeStyle = 'rgba(' + DC + ',.2)'; ctx.stroke(fast);
+    ctx.strokeStyle = 'rgba(' + DC + ',.08)'; ctx.stroke(slow);
+    ctx.fillStyle = 'rgba(' + DC + ',.92)'; ctx.fill(dots);
+    if (this._sitDraw) { const [x, y, w2, h2, al] = this._sitDraw; ctx.globalAlpha = al; ctx.drawImage(this.sit.c, x, y, w2, h2); ctx.globalAlpha = 1; }
+  }
+
+  renderVals() {
+    const s = this.state, lg = s.lang === 'fr' ? 'fr' : 'en';
+    const A = AUTH[lg], openA = m => () => this.setState({ authOpen: true, mode: m, err: '' });
+    return {
+      bottomRef: this.bottomRef,
+      authOpen: s.authOpen, openLogin: openA('login'), openSignup: openA('signup'), closeAuth: () => this.setState({ authOpen: false }), stop: e => e.stopPropagation(),
+      authTabs: [['login', TXT[lg].login], ['signup', TXT[lg].signup]].map(([k, label]) => ({ label, bg: s.mode === k ? 'rgba(255,255,255,.75)' : 'transparent', bd: s.mode === k ? '0 2px 8px rgba(0,0,0,.08)' : 'none', on: () => this.setState({ mode: k, err: '' }) })),
+      at: { ...A[s.mode], userL: A.userL, userPh: A.userPh, passL: A.passL, nameL: A.nameL, namePh: A.namePh },
+      isSignup: s.mode === 'signup', passAC: s.mode === 'signup' ? 'new-password' : 'current-password',
+      name: s.name || '', onName: e => this.setState({ name: e.target.value, err: '' }),
+      user: s.user, pass: s.pass, onUser: e => this.setState({ user: e.target.value.replace(/\s/g, ''), err: '' }), onPass: e => this.setState({ pass: e.target.value, err: '' }),
+      hasErr: !!s.err, err: s.err,
+      submit: e => {
+        e.preventDefault();
+        const u = s.user.trim().toLowerCase(), nm = (s.name || '').trim();
+        const err = !u ? A.eEmpty : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(u) ? A.eEmail : (s.mode === 'signup' && (nm.length < 2 || nm.length > 24)) ? A.eName : s.pass.length < 6 ? A.ePass : '';
+        if (err) return this.setState({ err });
+        try { ['foci-onboarded', 'foci-setup', 'foci-goals'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('foci-user', u); localStorage.setItem('foci-prof-name', s.mode === 'signup' ? nm : (localStorage.getItem('foci-prof-name') || u.split('@')[0])); localStorage.setItem('foci-lang', s.lang); } catch (x) {}
+        window.location.href = 'app.html';
+      },
+      canvasRef: this.canvasRef, t: TXT[lg], caption: CAPS[lg][s.scene],
+      capOp: s.capOn ? 1 : 0, capY: s.capOn ? '0px' : '8px',
+      langs: [['en', 'EN'], ['fr', 'FR']].map(([k, label]) => ({ label, bg: s.lang === k ? '#111' : 'transparent', fg: s.lang === k ? '#fff' : '#111', on: () => { try { localStorage.setItem('foci-lang', k); } catch (e) {} this.setState({ lang: k }); } })),
+      dots: SCENES.map((_, i) => ({ label: CAPS[lg][i], w: i === s.scene ? '28px' : '10px', bg: i === s.scene ? '#111' : 'rgba(17,17,17,.25)', on: () => { this.jump = i; } }))
+    };
+  }
+}
+</script>
+</body>
+</html>
