@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-sync.js"></script>
+<script>window.fociCloud.initApp();</script>
 </head>
 <body>
 <x-dc>
@@ -1168,7 +1170,6 @@ class Component extends DCLogic {
     this.extSlotCb = el => { this._extSlot = el; requestAnimationFrame(() => this.measureExt()); };
     this.winCb = el => { this._win = el; };
     window.addEventListener('resize', () => setTimeout(() => this.measureExt(), 50));
-    this.idb('get').then(rec => { if (rec && rec.blob && !this._noVidRestore) this.setState({ videoFileUrl: URL.createObjectURL(rec.blob), videoFileName: rec.name || '' }); }).catch(() => {});
     try {
       const setup = JSON.parse(localStorage.getItem('foci-setup'));
       if (setup && setup.subjects && !this.state.onboard) {
@@ -1176,7 +1177,6 @@ class Component extends DCLogic {
           setup.key = Date.now().toString(36); localStorage.setItem('foci-setup', JSON.stringify(setup));
           const caps = { '1': '', '2': '', '3': '', rem: '' }, skins = { daily: 'default', task: 'default' };
           localStorage.setItem('foci-vision-caps', JSON.stringify(caps)); localStorage.setItem('foci-card-skins', JSON.stringify(skins)); localStorage.removeItem('foci-vision-video');
-          this.idb('del').catch(() => {});
           this.setState({ caps, skins, videoUrl: '', videoFileUrl: '', videoFileName: '', photo: false });
           this._noVidRestore = true;
         }
@@ -1550,7 +1550,7 @@ class Component extends DCLogic {
         };
       })(),
       vs: (k => k ? { main: 'vision-main-' + k, s2: 'vision-2-' + k, s3: 'vision-3-' + k, prof: 'profile-photo-' + k } : { main: 'vision-main', s2: 'vision-2', s3: 'vision-3', prof: 'profile-photo' })(s.slotKey),
-      signOut: () => { try { localStorage.removeItem('foci-user'); } catch (e) {} this.setState({ running: false, playing: false, profOpen: false }); window.location.href = 'Foci Landing.dc.html'; },
+      signOut: () => { this.setState({ running: false, playing: false, profOpen: false }); window.fociCloud.signOutAndLeave(); },
       stageTransform: (sc => `translate(${(window.innerWidth - 1920 * sc) / 2}px, ${(window.innerHeight - 1080 * sc) / 2}px) scale(${sc})`)(s.scale > 0 ? s.scale : 1),
       pageName: pageNames[s.page] || '',
       darkOp: s.dark ? 1 : 0, toggleTheme: () => set({ dark: !s.dark }), themeTitle: s.dark ? 'Switch to light mode' : 'Switch to dark mode',
@@ -1652,12 +1652,12 @@ class Component extends DCLogic {
           editT: fr ? 'Cliquez pour modifier le texte' : 'Click to edit the text', phT: fr ? 'Nommez cet objectif…' : 'Name this goal…', phR: fr ? 'Écrivez-vous un rappel…' : 'Write yourself a reminder…', orL: fr ? 'ou' : 'or', pickL: fr ? 'Choisir une vidéo sur mon PC' : 'Choose a video from my PC' };
       })(),
       fileRef: this.fileRef, pickVideo: () => this.fileRef && this.fileRef.current && this.fileRef.current.click(),
-      onVideoFile: e => { const file = e.target.files && e.target.files[0]; if (!file) return; if (this.state.videoFileUrl) URL.revokeObjectURL(this.state.videoFileUrl); this.idb('put', { blob: file, name: file.name }).catch(() => {}); set({ videoFileUrl: URL.createObjectURL(file), videoFileName: file.name }); e.target.value = ''; },
+      onVideoFile: e => { const file = e.target.files && e.target.files[0]; if (!file) return; e.target.value = ''; set({ videoFileName: file.name }); window.fociCloud.uploadFile(file, 'vision-video').then(url => { try { localStorage.setItem('foci-vision-video', url); } catch (x) {} set({ videoUrl: url, videoDraft: '' }); }).catch(() => {}); },
       ...(u => { const yt = /youtu\.?be/.test(u); const id = yt ? ((u.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{6,})/) || [])[1] || '') : '';
         return { hasVideo: !!u, noVideo: !u, isYT: yt, isFileVideo: !!u && !yt, videoUrl: u, ytEmbed: id ? 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&mute=1&loop=1&playlist=' + id + '&playsinline=1&rel=0&origin=' + encodeURIComponent(location.origin) : '', ytWatch: id ? 'https://www.youtube.com/watch?v=' + id : u }; })(s.videoFileUrl || s.videoUrl),
       videoDraft: s.videoDraft, onVideoDraft: e => set({ videoDraft: e.target.value }),
       setVideo: () => this.setVideo(), videoKey: e => { if (e.key === 'Enter') this.setVideo(); },
-      clearVideo: () => { try { localStorage.removeItem('foci-vision-video'); } catch (e) {} if (s.videoFileUrl) { URL.revokeObjectURL(s.videoFileUrl); this.idb('del').catch(() => {}); } set({ videoUrl: '', videoDraft: '', videoFileUrl: '', videoFileName: '' }); },
+      clearVideo: () => { try { localStorage.removeItem('foci-vision-video'); } catch (e) {} set({ videoUrl: '', videoDraft: '', videoFileUrl: '', videoFileName: '' }); },
       goals: (() => {
         const lg = s.lang === 'fr' ? 'fr' : 'en', G = GOAL_TXT[lg], list = s.myGoals || GOAL_DEF[lg];
         const TH = [{ bg: '#fff', fg: '#111', bar: '#1c1c1c', cls: 'lt' }, { bg: '#a99cf0', fg: '#fff', bar: '#c8ff2e', cls: '' }, { bg: 'rgba(255,255,255,.1)', fg: '#fff', bar: '#c8ff2e', cls: '' }];
@@ -1858,8 +1858,6 @@ class Component extends DCLogic {
     const setup = { subjects: [...s.obSubjects], timetable: s.obClasses.map(c => ({ ...c, room: c.room || '—' })), program: uni + (country ? ' · ' + country : ''), key: Date.now().toString(36) };
     const caps = { '1': '', '2': '', '3': '', rem: '' }, skins = { daily: 'default', task: 'default' };
     try { localStorage.setItem('foci-vision-caps', JSON.stringify(caps)); localStorage.setItem('foci-card-skins', JSON.stringify(skins)); localStorage.removeItem('foci-vision-video'); } catch (e) {}
-    if (s.videoFileUrl) { try { URL.revokeObjectURL(s.videoFileUrl); } catch (e) {} }
-    this.idb('del').catch(() => {});
     this.setState({ caps, skins, videoUrl: '', videoDraft: '', videoFileUrl: '', videoFileName: '', photo: false });
     try { localStorage.setItem('foci-onboarded', '1'); localStorage.setItem('foci-setup', JSON.stringify(setup)); localStorage.setItem('foci-prof-prog', setup.program); } catch (e) {}
     const lg = s.lang === 'fr' ? 'fr' : 'en', myGoals = s.obGoals.map((g, i) => ({ k: g.k == null ? GOAL_TXT[lg].gK[i] : g.k, t: g.t.trim(), s: g.s.trim(), p: 0 }));
@@ -1895,19 +1893,6 @@ class Component extends DCLogic {
     const ext = { ...s.ext, [src]: { ...cur, lists, cur: item.id } };
     try { localStorage.setItem('foci-ext-music', JSON.stringify(ext)); } catch (e) {}
     this.setState({ ext, extDraft: '', extBad: false, playing: false });
-  }
-  idb(op, val) {
-    return new Promise((res, rej) => {
-      if (!window.indexedDB) return rej();
-      const rq = indexedDB.open('foci', 1);
-      rq.onupgradeneeded = () => rq.result.createObjectStore('files');
-      rq.onerror = () => rej(rq.error);
-      rq.onsuccess = () => {
-        const tx = rq.result.transaction('files', op === 'get' ? 'readonly' : 'readwrite'), st = tx.objectStore('files');
-        const r = op === 'get' ? st.get('vision-video') : op === 'put' ? st.put(val, 'vision-video') : st.delete('vision-video');
-        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-      };
-    });
   }
   setVideo() {
     const v = this.state.videoDraft.trim(); if (!v) return;

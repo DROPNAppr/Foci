@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-sync.js"></script>
+<script>window.fociCloud.initLanding();</script>
 </head>
 <body>
 <x-dc>
@@ -501,13 +503,16 @@ class Component extends DCLogic {
       name: s.name || '', onName: e => this.setState({ name: e.target.value, err: '' }),
       user: s.user, pass: s.pass, onUser: e => this.setState({ user: e.target.value.replace(/\s/g, ''), err: '' }), onPass: e => this.setState({ pass: e.target.value, err: '' }),
       hasErr: !!s.err, err: s.err,
-      submit: e => {
+      submit: async e => {
         e.preventDefault();
         const u = s.user.trim().toLowerCase(), nm = (s.name || '').trim();
         const err = !u ? A.eEmpty : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(u) ? A.eEmail : (s.mode === 'signup' && (nm.length < 2 || nm.length > 24)) ? A.eName : s.pass.length < 6 ? A.ePass : '';
         if (err) return this.setState({ err });
-        try { ['foci-onboarded', 'foci-setup', 'foci-goals'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('foci-user', u); localStorage.setItem('foci-prof-name', s.mode === 'signup' ? nm : (localStorage.getItem('foci-prof-name') || u.split('@')[0])); localStorage.setItem('foci-lang', s.lang); } catch (x) {}
-        window.location.href = 'Foci Study App.dc.html';
+        const { error } = s.mode === 'signup' ? await window.fociCloud.signUp(u, s.pass, nm) : await window.fociCloud.signIn(u, s.pass);
+        if (error) return this.setState({ err: error.message });
+        window.fociCloud.clearLocalFociKeys();
+        try { localStorage.setItem('foci-user', u); if (s.mode === 'signup') localStorage.setItem('foci-prof-name', nm); localStorage.setItem('foci-lang', s.lang); } catch (x) {}
+        window.fociCloud.goToApp();
       },
       canvasRef: this.canvasRef, t: TXT[lg], caption: CAPS[lg][s.scene],
       capOp: s.capOn ? 1 : 0, capY: s.capOn ? '0px' : '8px',
