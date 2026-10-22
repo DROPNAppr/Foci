@@ -175,7 +175,7 @@
   }
 
   function goToApp() {
-    location.href = "app.html";
+    location.href = "app.html" + location.search;
   }
 
   function signOutAndLeave() {
@@ -188,12 +188,120 @@
       });
   }
 
+  // ── projects + email invites ─────────────────────────────────────────────
+
+  var addDaysFrom = function (base, n) {
+    var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  };
+
+  // Same four demo projects the mockup always showed, carried over once per
+  // account into real rows (offsets preserved relative to today instead of
+  // the fixed Oct 21 2026 the mockup used to assume "today" was).
+  function demoProjects() {
+    var t = new Date();
+    return [
+      { title: "Physics lab report — Group B", type: "Physics", start: addDaysFrom(t, -15), end: addDaysFrom(t, 6), role: "Lead",
+        data: { progress: 65, hours: 11.5, ms: [{ t: "Data collected", date: addDaysFrom(t, -7), done: true }, { t: "First draft", date: addDaysFrom(t, 1), done: false }, { t: "Submit report", date: addDaysFrom(t, 6), done: false }] } },
+      { title: "History presentation: WWI", type: "History", start: addDaysFrom(t, -8), end: addDaysFrom(t, 16), role: "Member",
+        data: { progress: 30, hours: 4, ms: [{ t: "Pick sources", date: addDaysFrom(t, -3), done: true }, { t: "Slides done", date: addDaysFrom(t, 12), done: false }, { t: "Present", date: addDaysFrom(t, 16), done: false }] } },
+      { title: "Math group project — Optimization", type: "Math", start: addDaysFrom(t, -1), end: addDaysFrom(t, 38), role: "Member",
+        data: { progress: 10, hours: 1.5, ms: [{ t: "Problem statement", date: addDaysFrom(t, 6), done: false }, { t: "Model + code", date: addDaysFrom(t, 27), done: false }, { t: "Final write-up", date: addDaysFrom(t, 38), done: false }] } },
+      { title: "Personal: portfolio website", type: "Personal", start: addDaysFrom(t, -22), end: addDaysFrom(t, 55), role: "Lead",
+        data: { progress: 45, hours: 18, ms: [{ t: "Design", date: addDaysFrom(t, -6), done: true }, { t: "Build", date: addDaysFrom(t, 30), done: false }, { t: "Launch", date: addDaysFrom(t, 55), done: false }] } },
+    ];
+  }
+
+  function seedDemoProjectsIfEmpty() {
+    return client.from("projects").select("id", { count: "exact", head: true }).then(function (res) {
+      if (res.count) return;
+      var email = null;
+      return client.auth.getUser().then(function (u) {
+        email = u.data && u.data.user && u.data.user.email;
+        var rows = demoProjects();
+        return rows.reduce(function (chain, p) {
+          return chain.then(function () {
+            return client.from("projects").insert({ owner_id: userId, title: p.title, type: p.type, start: p.start, end: p.end, data: p.data }).select("id").single()
+              .then(function (pr) {
+                if (pr.error) throw pr.error;
+                return client.from("project_members").insert({ project_id: pr.data.id, user_id: userId, email: email, role: p.role, status: "accepted", accepted_at: new Date().toISOString() });
+              });
+          });
+        }, Promise.resolve());
+      });
+    }).catch(function (err) { console.error("[fociCloud] demo seed failed", err); });
+  }
+
+  function loadProjects() {
+    return seedDemoProjectsIfEmpty().then(function () {
+      return client.from("projects").select("id, title, type, start, end, data, owner_id, project_members(id, user_id, email, role, status, token)");
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data || [];
+    });
+  }
+
+  function createProject(title, type, start, end, data) {
+    var email = null;
+    return client.auth.getUser().then(function (u) {
+      email = u.data && u.data.user && u.data.user.email;
+      return client.from("projects").insert({ owner_id: userId, title: title, type: type, start: start, end: end, data: data || {} }).select().single();
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return client.from("project_members").insert({ project_id: res.data.id, user_id: userId, email: email, role: "Lead", status: "accepted", accepted_at: new Date().toISOString() })
+        .then(function () { return res.data; });
+    });
+  }
+
+  function updateProjectData(projectId, data) {
+    return client.from("projects").update({ data: data, updated_at: new Date().toISOString() }).eq("id", projectId);
+  }
+
+  function deleteProject(projectId) {
+    return client.from("projects").delete().eq("id", projectId);
+  }
+
+  function sendInviteEmail(token) {
+    return client.functions.invoke("send-invite", { body: { token: token } })
+      .catch(function (err) { console.error("[fociCloud] send-invite failed", err); });
+  }
+
+  function inviteMember(projectId, email, role) {
+    return client.from("project_members").insert({ project_id: projectId, email: email, role: role, status: "pending", invited_by: userId }).select().single()
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return sendInviteEmail(res.data.token).then(function () { return res.data; });
+      });
+  }
+
+  function resendInvite(token) {
+    return sendInviteEmail(token);
+  }
+
+  function removeMember(memberId) {
+    return client.from("project_members").delete().eq("id", memberId);
+  }
+
+  function getInvitePreview(token) {
+    return client.rpc("get_invite", { p_token: token }).then(function (res) {
+      if (res.error) throw res.error;
+      return (res.data && res.data[0]) || null;
+    });
+  }
+
+  function acceptInvite(token) {
+    return client.rpc("accept_invite", { p_token: token }).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
   // ── page entry points ────────────────────────────────────────────────────
 
   function initLanding() {
     return client.auth.getSession().then(function (res) {
       if (res.data && res.data.session) {
-        location.replace("app.html");
+        location.replace("app.html" + location.search);
         return;
       }
       loadSupportScript();
@@ -208,6 +316,8 @@
         return;
       }
       userId = session.user.id;
+      window.fociCloud.userId = userId;
+      window.fociCloud.userEmail = session.user.email;
       return hydrateFromCloud().then(function () {
         installImageSlotShim();
         installSyncWatchers();
@@ -217,6 +327,8 @@
   }
 
   window.fociCloud = {
+    userId: null,
+    userEmail: null,
     initLanding: initLanding,
     initApp: initApp,
     signUp: signUp,
@@ -226,5 +338,14 @@
     uploadFile: function (file, idHint) { return uploadFile(file, idHint); },
     flushNow: flushNow,
     clearLocalFociKeys: clearLocalFociKeys,
+    loadProjects: loadProjects,
+    createProject: createProject,
+    updateProjectData: updateProjectData,
+    deleteProject: deleteProject,
+    inviteMember: inviteMember,
+    resendInvite: resendInvite,
+    removeMember: removeMember,
+    getInvitePreview: getInvitePreview,
+    acceptInvite: acceptInvite,
   };
 })();
